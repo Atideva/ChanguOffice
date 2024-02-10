@@ -8,119 +8,8 @@ using MoreMountains.Feedbacks;
 
 namespace MoreMountains.CorgiEngine
 {
-    public enum CorgiEngineEventTypes
-    {
-        SpawnCharacterStarts,
-        LevelStart,
-        LevelComplete,
-        LevelEnd,
-        Pause,
-        UnPause,
-        PlayerDeath,
-        Respawn,
-        StarPicked,
-        GameOver,
-        CharacterSwitch,
-        CharacterSwap,
-        TogglePause,
-        LoadNextScene,
-        PauseNoMenu
-    }
-
-    public struct CorgiEngineEvent
-    {
-        public CorgiEngineEventTypes EventType;
-        public Character OriginCharacter;
-
-        public CorgiEngineEvent(CorgiEngineEventTypes eventType, Character originCharacter = null)
-        {
-            EventType = eventType;
-            OriginCharacter = originCharacter;
-        }
-
-        static CorgiEngineEvent e;
-
-        public static void Trigger(CorgiEngineEventTypes eventType, Character originCharacter = null)
-        {
-            e.EventType = eventType;
-            e.OriginCharacter = originCharacter;
-            MMEventManager.TriggerEvent(e);
-        }
-    }
-
-    public enum PointsMethods
-    {
-        Add,
-        Set
-    }
-
-    public struct CorgiEngineStarEvent
-    {
-        public string SceneName;
-        public int StarID;
-
-        public CorgiEngineStarEvent(string sceneName, int starID)
-        {
-            SceneName = sceneName;
-            StarID = starID;
-        }
-
-        static CorgiEngineStarEvent e;
-
-        public static void Trigger(string sceneName, int starID)
-        {
-            e.SceneName = sceneName;
-            e.StarID = starID;
-            MMEventManager.TriggerEvent(e);
-        }
-    }
-
-    public struct CorgiEnginePointsEvent
-    {
-        public PointsMethods PointsMethod;
-        public int Points;
-
-        public CorgiEnginePointsEvent(PointsMethods pointsMethod, int points)
-        {
-            PointsMethod = pointsMethod;
-            Points = points;
-        }
-
-        static CorgiEnginePointsEvent e;
-
-        public static void Trigger(PointsMethods pointsMethod, int points)
-        {
-            e.PointsMethod = pointsMethod;
-            e.Points = points;
-            MMEventManager.TriggerEvent(e);
-        }
-    }
-
-    public enum PauseMethods
-    {
-        PauseMenu,
-        NoPauseMenu
-    }
-
-    public class PointsOfEntryStorage
-    {
-        public string LevelName;
-        public int PointOfEntryIndex;
-        public Character.FacingDirections FacingDirection;
-
-        public PointsOfEntryStorage(string levelName, int pointOfEntryIndex, Character.FacingDirections facingDirection)
-        {
-            LevelName = levelName;
-            FacingDirection = facingDirection;
-            PointOfEntryIndex = pointOfEntryIndex;
-        }
-    }
-
     [AddComponentMenu("Corgi Engine/Managers/Game Manager")]
-    public class GameManager : MMPersistentSingleton<GameManager>,
-        MMEventListener<MMGameEvent>,
-        MMEventListener<CorgiEngineEvent>,
-        MMEventListener<CorgiEnginePointsEvent>
+    public class GameManager : MMPersistentSingleton<GameManager>, MMEventListener<MMGameEvent>, MMEventListener<CorgiEngineEvent>, MMEventListener<CorgiEnginePointsEvent>
     {
         [Header("Settings")]
         public int TargetFrameRate = 300;
@@ -180,18 +69,14 @@ namespace MoreMountains.CorgiEngine
         {
             CurrentLives += lives;
             if (CurrentLives > MaximumLives)
-            {
                 CurrentLives = MaximumLives;
-            }
         }
 
         public virtual void AddLives(int lives, bool increaseCurrent)
         {
             MaximumLives += lives;
             if (increaseCurrent)
-            {
                 CurrentLives += lives;
-            }
         }
 
         public virtual void ResetLives()
@@ -215,20 +100,14 @@ namespace MoreMountains.CorgiEngine
         protected virtual void SetActiveInventoryInputManager(bool status)
         {
             _inventoryInputManager = GameObject.FindObjectOfType<InventoryInputManager>();
-            if (_inventoryInputManager != null)
-            {
+            if (_inventoryInputManager)
                 _inventoryInputManager.enabled = status;
-            }
         }
 
         public virtual void Pause(PauseMethods pauseMethod = PauseMethods.PauseMenu)
         {
-            if ((pauseMethod == PauseMethods.PauseMenu) && _inventoryOpen)
-            {
-                return;
-            }
+            if ((pauseMethod == PauseMethods.PauseMenu) && _inventoryOpen) return;
 
-            // if time is not already stopped		
             if (Time.timeScale > 0.0f)
             {
                 MMTimeScaleEvent.Trigger(MMTimeScaleMethods.For, 0f, 0f, false, 0f, true);
@@ -241,9 +120,7 @@ namespace MoreMountains.CorgiEngine
                 }
 
                 if (pauseMethod == PauseMethods.NoPauseMenu)
-                {
                     _inventoryOpen = true;
-                }
             }
             else
             {
@@ -266,9 +143,7 @@ namespace MoreMountains.CorgiEngine
             }
 
             if (_inventoryOpen)
-            {
                 _inventoryOpen = false;
-            }
 
             LevelManager.Instance.ToggleCharacterPause();
         }
@@ -281,19 +156,15 @@ namespace MoreMountains.CorgiEngine
             MMSaveLoadManager.DeleteSaveFolder("MMRetroAdventureProgress");
         }
 
-        /// <param name="exitIndex">Exit index.</param>
         public virtual void StorePointsOfEntry(string levelName, int entryIndex, Character.FacingDirections facingDirection)
         {
             if (PointsOfEntry.Count > 0)
             {
-                foreach (PointsOfEntryStorage point in PointsOfEntry)
+                foreach (var point in PointsOfEntry.Where(point => point.LevelName == levelName))
                 {
-                    if (point.LevelName == levelName)
-                    {
-                        point.FacingDirection = facingDirection;
-                        point.PointOfEntryIndex = entryIndex;
-                        return;
-                    }
+                    point.FacingDirection = facingDirection;
+                    point.PointOfEntryIndex = entryIndex;
+                    return;
                 }
             }
 
@@ -321,20 +192,15 @@ namespace MoreMountains.CorgiEngine
 
         public virtual void DestroyPersistentCharacter()
         {
-            if (PersistentCharacter != null)
+            if (PersistentCharacter)
             {
                 Destroy(PersistentCharacter.gameObject);
                 SetPersistentCharacter(null);
             }
 
-
-            if (LevelManager.Instance.Players[0] != null)
-            {
-                if (LevelManager.Instance.Players[0].gameObject.MMGetComponentNoAlloc<CharacterPersistence>() != null)
-                {
-                    Destroy(LevelManager.Instance.Players[0].gameObject);
-                }
-            }
+            if (!LevelManager.Instance.Players[0]) return;
+            if (LevelManager.Instance.Players[0].gameObject.MMGetComponentNoAlloc<CharacterPersistence>())
+                Destroy(LevelManager.Instance.Players[0].gameObject);
         }
 
         public virtual void StoreSelectedCharacter(Character selectedCharacter)
@@ -366,15 +232,7 @@ namespace MoreMountains.CorgiEngine
             switch (engineEvent.EventType)
             {
                 case CorgiEngineEventTypes.TogglePause:
-                    if (Paused)
-                    {
-                        CorgiEngineEvent.Trigger(CorgiEngineEventTypes.UnPause);
-                    }
-                    else
-                    {
-                        CorgiEngineEvent.Trigger(CorgiEngineEventTypes.Pause);
-                    }
-
+                    CorgiEngineEvent.Trigger(Paused ? CorgiEngineEventTypes.UnPause : CorgiEngineEventTypes.Pause);
                     break;
 
                 case CorgiEngineEventTypes.Pause:

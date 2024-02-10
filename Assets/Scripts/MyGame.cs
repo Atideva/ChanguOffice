@@ -13,8 +13,4 @@ public class MyGame : MonoBehaviour
     {
         nameGenerator.GenerateNames(nameList, ui);
     }
-
-  
-
-  
 }

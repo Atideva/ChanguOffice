@@ -7,88 +7,83 @@ using UnityEngine.SceneManagement;
 using MoreMountains.Tools;
 
 namespace MoreMountains.CorgiEngine
-{	
-	/// <summary>
-	/// Spawns the players and handles end game
-	/// </summary>
-	[AddComponentMenu("Corgi Engine/Managers/Multiplayer Level Manager")]
-	public class MultiplayerLevelManager : LevelManager
-	{	
-		/// <summary>
-		/// Checks the multiplayer end game conditions
-		/// </summary>
-		protected virtual void CheckMultiplayerEndGame()
-		{
-			int stillAlive = 0;
-			string winnerID = "";
-			foreach (Character player in Players)
-			{
-				if (player.ConditionState.CurrentState != CharacterStates.CharacterConditions.Dead)
-				{
-					stillAlive++;
-					winnerID = player.PlayerID;
-				}
-			}
-			if (stillAlive == 1)
-			{
-				StartCoroutine(MultiplayerEndGame (winnerID));
-			}
-		}
+{
+    [AddComponentMenu("Corgi Engine/Managers/Multiplayer Level Manager")]
+    public class MultiplayerLevelManager : LevelManager
+    {
+        protected virtual void CheckMultiplayerEndGame()
+        {
+            var stillAlive = 0;
+            var winnerID = "";
+            foreach (var player in Players.Where(player
+                         => player.ConditionState.CurrentState != CharacterStates.CharacterConditions.Dead))
+            {
+                stillAlive++;
+                winnerID = player.PlayerID;
+            }
 
-		/// <summary>
-		/// Handles the endgame
-		/// </summary>
-		/// <returns>The end game.</returns>
-		/// <param name="winnerID">Winner I.</param>
-		protected virtual IEnumerator MultiplayerEndGame(string winnerID)
-		{
-			// we wait for 1 second
-			yield return new WaitForSeconds (1f);
-			// we freeze all characters
-			FreezeCharacters ();
-			// wait for another second
-			yield return new WaitForSeconds (1f);
+            if (stillAlive == 1)
+                StartCoroutine(MultiplayerEndGame(winnerID));
+        }
 
-			// if we find a MPGUIManager, we display the end game screen with the name of the winner
-			if (GUIManager.Instance.GetComponent<MultiplayerGUIManager>() != null)
-			{
-				GUIManager.Instance.GetComponent<MultiplayerGUIManager> ().ShowMultiplayerEndgame ();
-				GUIManager.Instance.GetComponent<MultiplayerGUIManager> ().SetMultiplayerEndgameText (winnerID+" WINS");
-			}
-			// we wait for 2 seconds
-			yield return new WaitForSeconds (2f);
-			// we reload the current scene to start a new game
-			MMSceneLoadingManager.LoadScene(SceneManager.GetActiveScene ().name);
-		}
+        protected virtual IEnumerator MultiplayerEndGame(string winnerID)
+        {
+            yield return new WaitForSeconds(1f);
 
-		/// <summary>
-		/// Kills the specified player 
-		/// </summary>
-		public override void PlayerDead(Character player)
-		{
-			Health characterHealth = player.GetComponent<Health>();
-			if (characterHealth == null)
-			{
-				return;
-			} 
-			else
-			{
-				// we kill the character
-				StartCoroutine (RemovePlayer (player));
-			}
+            FreezeCharacters();
+            yield return new WaitForSeconds(1f);
 
-			CheckMultiplayerEndGame ();
-		}
+            if (GUIManager.Instance.GetComponent<MultiplayerGUIManager>() != null)
+            {
+                GUIManager.Instance.GetComponent<MultiplayerGUIManager>().ShowMultiplayerEndgame();
+                GUIManager.Instance.GetComponent<MultiplayerGUIManager>().SetMultiplayerEndgameText(winnerID + " WINS");
+            }
 
-		/// <summary>
-		/// Removes the specified player from the game.
-		/// </summary>
-		/// <returns>The player.</returns>
-		/// <param name="player">Player.</param>
-		protected virtual IEnumerator RemovePlayer(Character player)
-		{
-			yield return new WaitForSeconds (0.01f);
-			Destroy (player.gameObject);
-		}
-	}
+            yield return new WaitForSeconds(2f);
+            MMSceneLoadingManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+
+        public bool allowRespawn;
+
+        public override void PlayerDead(Character player)
+        {
+            var characterHealth = player.GetComponent<Health>();
+            if (!characterHealth) return;
+
+            if (allowRespawn)
+            {
+                StartCoroutine(SoloModeRestart(player));
+            }
+            else
+            {
+                StartCoroutine(RemovePlayer(player));
+                CheckMultiplayerEndGame();
+            }
+        }
+
+        public List<CheckPoint> respawnCheckPoints;
+
+        IEnumerator SoloModeRestart(Character player)
+        {
+            MMCameraEvent.Trigger(MMCameraEventTypes.StopFollowing);
+            yield return new WaitForSeconds(RespawnDelay);
+            MMCameraEvent.Trigger(MMCameraEventTypes.StartFollowing);
+
+            var id = player.ID;
+            respawnCheckPoints[id].SpawnPlayer(Players[id]);
+
+            // _started = DateTime.UtcNow;
+            // if (ResetPointsOnRestart)
+            //     CorgiEnginePointsEvent.Trigger(PointsMethods.Set, 0);
+
+           // ResetLevelBoundsToOriginalBounds();
+            CorgiEngineEvent.Trigger(CorgiEngineEventTypes.Respawn, Players[id]);
+        }
+
+        protected virtual IEnumerator RemovePlayer(Character player)
+        {
+            yield return new WaitForSeconds(0.01f);
+            Destroy(player.gameObject);
+        }
+    }
 }
